@@ -28,7 +28,7 @@ import (
 
 type queuedTransaction[Meta any] struct {
 	FullTx          *types.Transaction
-	Data            types.DynamicFeeTx
+	Data            types.LegacyTx
 	Meta            Meta
 	Sent            bool
 	Created         time.Time // may be earlier than the tx was given to the tx poster
@@ -187,7 +187,10 @@ func (p *DataPoster[Meta]) getFeeAndTipCaps(ctx context.Context, lastTipCap *big
 	if lastTipCap != nil {
 		newTipCap = arbmath.BigMax(newTipCap, arbmath.BigMulByBips(lastTipCap, minRbfIncrease))
 	}
-	newFeeCap := new(big.Int).Mul(latestHeader.BaseFee, big.NewInt(2))
+	//newFeeCap := new(big.Int).Mul(latestHeader.BaseFee, big.NewInt(2))
+	_ = latestHeader
+	fee := big.NewInt(5*1000000000)
+	newFeeCap := new(big.Int).Mul(fee, big.NewInt(2))
 	newFeeCap.Add(newFeeCap, newTipCap)
 
 	elapsed := time.Since(dataCreatedAt)
@@ -226,10 +229,9 @@ func (p *DataPoster[Meta]) PostTransaction(ctx context.Context, dataCreatedAt ti
 	if err != nil {
 		return err
 	}
-	inner := types.DynamicFeeTx{
+	inner := types.LegacyTx{
 		Nonce:     nonce,
-		GasTipCap: tipCap,
-		GasFeeCap: feeCap,
+		GasPrice: feeCap.Add(feeCap, tipCap),
 		Gas:       gasLimit,
 		To:        &to,
 		Value:     new(big.Int),
@@ -284,7 +286,7 @@ func (p *DataPoster[Meta]) sendTx(ctx context.Context, prevTx *queuedTransaction
 
 // the mutex must be held by the caller
 func (p *DataPoster[Meta]) replaceTx(ctx context.Context, prevTx *queuedTransaction[Meta]) error {
-	newFeeCap, newTipCap, err := p.getFeeAndTipCaps(ctx, prevTx.Data.GasTipCap, prevTx.Created)
+	newFeeCap, newTipCap, err := p.getFeeAndTipCaps(ctx, nil, prevTx.Created)
 	if err != nil {
 		return err
 	}
@@ -292,7 +294,8 @@ func (p *DataPoster[Meta]) replaceTx(ctx context.Context, prevTx *queuedTransact
 	desiredFeeCap := newFeeCap
 	maxFeeCap := new(big.Int).Div(p.balance, new(big.Int).SetUint64(prevTx.Data.Gas))
 	newFeeCap = arbmath.BigMin(newFeeCap, maxFeeCap)
-	minNewFeeCap := arbmath.BigMulByBips(prevTx.Data.GasFeeCap, minRbfIncrease)
+	_ = newTipCap
+	minNewFeeCap := arbmath.BigMulByBips(big.NewInt(0), minRbfIncrease)
 	newTx := *prevTx
 	if newFeeCap.Cmp(minNewFeeCap) < 0 {
 		if desiredFeeCap.Cmp(minNewFeeCap) >= 0 {
@@ -317,8 +320,8 @@ func (p *DataPoster[Meta]) replaceTx(ctx context.Context, prevTx *queuedTransact
 		break
 	}
 	newTx.Sent = false
-	newTx.Data.GasFeeCap = newFeeCap
-	newTx.Data.GasTipCap = newTipCap
+	// newTx.Data.GasFeeCap = newFeeCap
+	// newTx.Data.GasTipCap = newTipCap
 	newTx.FullTx, err = p.auth.Signer(p.auth.From, types.NewTx(&newTx.Data))
 	if err != nil {
 		return err

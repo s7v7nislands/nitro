@@ -143,7 +143,7 @@ contract Bridge is Initializable, DelegateCallAware, IBridge {
                 sender,
                 uint64(block.number),
                 uint64(block.timestamp), // solhint-disable-line not-rely-on-time,
-                block.basefee,
+                500000000,
                 messageDataHash
             );
     }
@@ -161,7 +161,7 @@ contract Bridge is Initializable, DelegateCallAware, IBridge {
                 sender,
                 uint64(block.number),
                 uint64(block.timestamp), // solhint-disable-line not-rely-on-time
-                block.basefee,
+                500000000,
                 messageDataHash
             );
     }

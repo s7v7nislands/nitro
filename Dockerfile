@@ -247,7 +247,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update && \
     apt-get install -y \
     sudo && \
-    chmod -R 555 /home/user/target/machines && \
+    chmod -R 755 /home/user/target/machines && \
     adduser user sudo && \
     echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && \
     apt-get clean && \
